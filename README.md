@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aplicativo de Orações
 
-## Getting Started
+Uma aplicação web para gerar orações personalizadas usando IA.
 
-First, run the development server:
+## Pré-requisitos
+
+- Node.js 18.0.0 ou superior
+- NPM 8.0.0 ou superior
+
+## Configuração do Ambiente
+
+1. Clone o repositório:
+```bash
+git clone [URL_DO_SEU_REPOSITORIO]
+cd oracoes-app
+```
+
+2. Instale as dependências:
+```bash
+npm install
+```
+
+## Executando o Projeto
+
+Para rodar o projeto em ambiente de desenvolvimento:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+O aplicativo estará disponível em `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Modo de Teste
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Atualmente o aplicativo está funcionando em modo de teste, utilizando orações pré-definidas para simular a geração de orações personalizadas. Isso permite testar a funcionalidade sem necessidade de uma chave da API da OpenAI.
 
-## Learn More
+### Para ativar o modo com IA (quando disponível):
 
-To learn more about Next.js, take a look at the following resources:
+1. Configure as variáveis de ambiente:
+   - Crie um arquivo `.env.local` na raiz do projeto
+   - Adicione sua chave da API OpenAI:
+```
+OPENAI_API_KEY=sua_chave_aqui
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Modifique o arquivo `app/api/oracao/route.ts` para usar a API da OpenAI
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy na Vercel
 
-## Deploy on Vercel
+1. Crie uma conta na [Vercel](https://vercel.com) se ainda não tiver
+2. Instale a CLI da Vercel:
+```bash
+npm install -g vercel
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. Faça login na sua conta:
+```bash
+vercel login
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Deploy do projeto:
+```bash
+vercel
+```
+
+5. Para o modo com IA, configure a variável de ambiente `OPENAI_API_KEY` no painel da Vercel:
+   - Acesse as configurações do projeto
+   - Vá para a seção "Environment Variables"
+   - Adicione a variável `OPENAI_API_KEY` com sua chave da API OpenAI
+
+## Funcionalidades
+
+- Splash screen de boas-vindas
+- Interface simples para inserção do motivo de oração
+- Geração de orações personalizadas (modo de teste)
+- Botão para copiar a oração gerada
+- Design responsivo e minimalista
