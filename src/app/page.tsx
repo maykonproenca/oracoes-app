@@ -48,23 +48,23 @@ function saveRotateState(state: RotateState) {
   }
 }
 
-// Gradiente de fundo por horário
+// Gradiente claro por horário (para dentro do card)
 function gradientForHour(hour: number): string {
   // manhã 5-11 | tarde 12-17 | entardecer 18-20 | noite 21-4
   if (hour >= 5 && hour <= 11) {
-    // Manhã: azul claro para branco
-    return 'linear-gradient(180deg, #EAF4FF 0%, #FDFEFF 100%)';
+    // Manhã: quase branco com leve azul
+    return 'linear-gradient(180deg, #F8FBFF 0%, #FFFFFF 100%)';
   }
   if (hour >= 12 && hour <= 17) {
-    // Tarde: azul vivo suave
-    return 'linear-gradient(180deg, #DDEBFF 0%, #EEF5FF 100%)';
+    // Tarde: branco com azul muito suave
+    return 'linear-gradient(180deg, #F6FAFF 0%, #FFFFFF 100%)';
   }
   if (hour >= 18 && hour <= 20) {
-    // Entardecer: laranja/rosa para lilás
-    return 'linear-gradient(180deg, #FFD7B8 0%, #F3E0FF 100%)';
+    // Entardecer: pêssego/lilás bem claros
+    return 'linear-gradient(180deg, #FFF1E6 0%, #FBF5FF 100%)';
   }
-  // Noite: azul escuro para roxo
-  return 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)';
+  // Noite: cinza-azulado muito claro
+  return 'linear-gradient(180deg, #F5F7FF 0%, #FFFFFF 100%)';
 }
 
 export default function Home() {
@@ -149,15 +149,18 @@ export default function Home() {
     setTimeout(() => setCopyMsg(''), 1500);
   };
 
+  // Fundo externo fixo escuro (fora do card)
+  const outerBackground = 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)';
+
   if (showSplash) {
     return (
       <div style={{
-        height: '100vh',
+        height: '100dvh',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        background: bgGradient,
-        fontSize: '24px',
+        background: outerBackground,
+        fontSize: '22px',
         fontWeight: 'bold',
         color: '#fff'
       }}>
@@ -168,42 +171,43 @@ export default function Home() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      background: bgGradient,
+      minHeight: '100dvh',
+      background: outerBackground,
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: '24px'
+      padding: '16px'
     }}>
       <div style={{
         width: '100%',
         maxWidth: '420px',
-        background: '#fff',
+        background: bgGradient,
         borderRadius: '28px',
-        boxShadow: '0 24px 60px rgba(20, 40, 120, 0.12)',
+        boxShadow: '0 24px 60px rgba(20, 40, 120, 0.20)',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 48px)'
+        height: '92dvh',
+        border: '1px solid rgba(230,235,255,0.8)'
       }}>
         {/* Header simples */}
-        <div style={{ padding: '20px 22px 8px 22px' }}>
+        <div style={{ padding: '14px 18px 6px 18px' }}>
           <div style={{ height: 4, width: 28, background: '#eaeaea', borderRadius: 2 }} />
         </div>
 
         {/* Conteúdo principal variável por aba */}
-        <div style={{ flex: 1, padding: '12px 22px 0 22px', overflowY: 'auto' }}>
+        <div style={{ flex: 1, padding: '10px 18px 0 18px', overflowY: 'auto' }}>
           {/* Frase no topo, centralizada e em uma única linha */}
           <div
             style={{
               textAlign: 'center',
-              fontSize: '22px',
+              fontSize: '20px',
               fontWeight: 600,
               color: '#1d1d1f',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              margin: '6px 0 2px'
+              margin: '4px 0 2px'
             }}
           >
             Vamos conversar com Deus hoje?
@@ -215,7 +219,7 @@ export default function Home() {
               fontSize: '14px',
               color: '#6b7280',
               fontStyle: 'italic',
-              marginBottom: '10px',
+              marginBottom: '8px',
               transition: 'opacity 260ms ease, transform 260ms ease',
               opacity: fraseVisible ? 1 : 0,
               transform: fraseVisible ? 'translateY(0px)' : 'translateY(6px)'
@@ -227,11 +231,11 @@ export default function Home() {
           {activeTab === 'center' && (
             <div style={{ textAlign: 'center' }}>
               <h1 style={{
-                margin: '18px 0 14px',
-                fontSize: '24px',
-                lineHeight: '30px',
-                color: '#1d1d1f',
-                fontWeight: 700
+                margin: '10px 0 10px',
+                fontSize: '22px',
+                lineHeight: '28px',
+                color: '#111827',
+                fontWeight: 800
               }}>
                 Pelo que você gostaria de orar hoje?
               </h1>
@@ -242,18 +246,18 @@ export default function Home() {
                 placeholder="Digite aqui..."
                 style={{
                   width: '100%',
-                  minHeight: '110px',
-                  padding: '12px 14px',
+                  minHeight: '90px',
+                  padding: '10px 12px',
                   borderRadius: '14px',
                   border: '1px solid #e6e6e6',
-                  background: '#fafafa',
+                  background: '#ffffff',
                   fontSize: '14px',
                   color: '#333',
                   outline: 'none'
                 }}
               />
 
-              <div style={{ height: 20 }} />
+              <div style={{ height: 14 }} />
 
               <button
                 onClick={handleGenerate}
@@ -263,13 +267,13 @@ export default function Home() {
                   display: 'inline-flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  width: 72,
-                  height: 72,
+                  width: 64,
+                  height: 64,
                   borderRadius: '50%',
                   border: 'none',
                   background: isLoading ? '#c7d2fe' : '#4f46e5',
                   color: '#fff',
-                  fontSize: '30px',
+                  fontSize: '28px',
                   cursor: isLoading ? 'default' : 'pointer',
                   boxShadow: '0 10px 24px rgba(79,70,229,0.35)',
                   margin: '0 auto'
@@ -281,16 +285,16 @@ export default function Home() {
               {/* Resultado */}
               {oracao && (
                 <div style={{
-                  marginTop: 20,
+                  marginTop: 16,
                   textAlign: 'left',
-                  background: 'linear-gradient(180deg, #f8f9ff 0%, #f5f7ff 100%)',
+                  background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
                   border: '1px solid #eef0ff',
-                  borderRadius: 16,
-                  padding: 16,
+                  borderRadius: 14,
+                  padding: 14,
                   color: '#2a2a2a'
                 }}>
                   <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{oracao}</p>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                     <button
                       onClick={copyToClipboard}
                       style={{
@@ -322,17 +326,17 @@ export default function Home() {
               justifyContent: 'center',
               color: '#8a8a8e'
             }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🕊️</div>
-              <div style={{ fontSize: 16 }}>Conteúdo em breve</div>
+              <div style={{ fontSize: 44, marginBottom: 10 }}>🕊️</div>
+              <div style={{ fontSize: 15 }}>Conteúdo em breve</div>
             </div>
           )}
         </div>
 
         {/* Bottom Nav */}
         <nav style={{
-          padding: '10px 22px 18px',
+          padding: '8px 18px 14px',
           borderTop: '1px solid #f0f0f5',
-          background: '#fff',
+          background: 'transparent',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
