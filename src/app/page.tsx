@@ -77,12 +77,35 @@ export default function Home() {
   const [fraseTopo, setFraseTopo] = useState<string>('');
   const [fraseVisible, setFraseVisible] = useState<boolean>(false);
   const [bgGradient, setBgGradient] = useState<string>(gradientForHour(new Date().getHours()));
+  // Novo splash em duas etapas
+  const [splashStage, setSplashStage] = useState<'logo' | 'phrase'>('logo');
+  const [splashVisible, setSplashVisible] = useState<boolean>(false);
+  const FADE_IN_MS = 1000;
+  const FADE_OUT_MS = 2000;
 
+  // Sequência do splash: logo -> frase -> app
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2000);
-    return () => clearTimeout(timer);
+    let t1: number | undefined;
+    let t2: number | undefined;
+    let t3: number | undefined;
+    let t4: number | undefined;
+
+    setSplashStage('logo');
+    setSplashVisible(true); // dispara fade-in do logo (1s)
+    t1 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out (2s)
+    t2 = window.setTimeout(() => {
+      setSplashStage('phrase');
+      setSplashVisible(true); // fade-in da frase (1s)
+      t3 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out (2s)
+      t4 = window.setTimeout(() => setShowSplash(false), FADE_IN_MS + FADE_OUT_MS); // encerra splash
+    }, FADE_IN_MS + FADE_OUT_MS); // após 3s do logo
+
+    return () => {
+      if (t1) clearTimeout(t1);
+      if (t2) clearTimeout(t2);
+      if (t3) clearTimeout(t3);
+      if (t4) clearTimeout(t4);
+    };
   }, []);
 
   // Atualiza gradiente conforme horário (checa a cada 5 minutos)
@@ -160,11 +183,21 @@ export default function Home() {
         justifyContent: 'center',
         alignItems: 'center',
         background: outerBackground,
-        fontSize: '22px',
-        fontWeight: 'bold',
         color: '#fff'
       }}>
-        Seja bem-vindo(a) de volta
+        <div
+          style={{
+            opacity: splashVisible ? 1 : 0,
+            transition: `opacity ${splashVisible ? FADE_IN_MS : FADE_OUT_MS}ms ease`,
+            transform: 'translateY(0)',
+            fontSize: splashStage === 'logo' ? '56px' : '22px',
+            fontWeight: splashStage === 'logo' ? 400 : 700,
+            textAlign: 'center',
+            padding: '0 24px'
+          }}
+        >
+          {splashStage === 'logo' ? '📖' : 'Vamos conversar com Deus hoje?'}
+        </div>
       </div>
     );
   }
@@ -197,21 +230,7 @@ export default function Home() {
 
         {/* Conteúdo principal variável por aba */}
         <div style={{ flex: 1, padding: '10px 18px 0 18px', overflowY: 'auto' }}>
-          {/* Frase no topo, centralizada e em uma única linha */}
-          <div
-            style={{
-              textAlign: 'center',
-              fontSize: '20px',
-              fontWeight: 600,
-              color: '#1d1d1f',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              margin: '4px 0 2px'
-            }}
-          >
-            Vamos conversar com Deus hoje?
-          </div>
+          {/* Removido título "Vamos conversar com Deus hoje?" do conteúdo principal */}
           {/* Frase rotativa com animação sutil */}
           {fraseTopo && (
             <div style={{
