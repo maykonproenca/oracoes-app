@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { frasesRotativas } from '../data/frasesRotativas';
 
 type TabKey = 'left' | 'center' | 'right';
@@ -76,6 +76,7 @@ export default function Home() {
   const [animatingTabs, setAnimatingTabs] = useState<boolean>(false);
   const [enterPhase, setEnterPhase] = useState<boolean>(false);
   const [animDirection, setAnimDirection] = useState<'left' | 'right' | null>(null);
+  const tabTimersRef = useRef<number[]>([]);
   const [motivo, setMotivo] = useState('');
   const [oracao, setOracao] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -90,6 +91,15 @@ export default function Home() {
   const FADE_OUT_MS = 1000; // 1s
   // Visibilidade da tela principal
   const [mainVisible, setMainVisible] = useState<boolean>(false);
+  // Animação pós-clique (área de pergunta)
+  const [uiCompact, setUiCompact] = useState<boolean>(false);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [inputHeight, setInputHeight] = useState<number>(90);
+  // Animação da resposta
+  const [resultVisible, setResultVisible] = useState<boolean>(false);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+  // Duração mais fluída (+1s)
+  const UI_ANIM_MS = 1400;
 
   // Timeline do splash: 
   // t=0s: start -> logo fade-in 0.5s
@@ -161,8 +171,20 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (!motivo.trim()) return;
+
+    // Compacta UI: encolhe textarea para altura do conteúdo e desliza tudo para cima
+    setUiCompact(true);
+    setTimeout(() => {
+      const el = textAreaRef.current;
+      if (el) {
+        const nextHeight = Math.max(42, Math.min(el.scrollHeight, 160));
+        setInputHeight(nextHeight);
+      }
+    }, 20);
+
     setIsLoading(true);
     setOracao('');
+    setResultVisible(false);
     try {
       const response = await fetch('/api/oracao', {
         method: 'POST',
@@ -172,6 +194,14 @@ export default function Home() {
       const data = await response.json();
       if (response.ok) {
         setOracao(data.oracao);
+        // pequena defasagem para permitir transição
+        setTimeout(() => {
+          setResultVisible(true);
+          // Centraliza a resposta na tela
+          setTimeout(() => {
+            resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 30);
+        }, 40);
       } else {
         alert(data.error || 'Erro ao gerar oração');
       }
@@ -182,70 +212,90 @@ export default function Home() {
     }
   };
 
-  const copyToClipboard = async () => {
+  const handleShare = async () => {
     if (!oracao) return;
-    await navigator.clipboard.writeText(oracao);
-    setCopyMsg('Copiado!');
-    setTimeout(() => setCopyMsg(''), 1500);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Oração', text: oracao });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(oracao);
+        alert('Oração copiada. Cole onde desejar para compartilhar.');
+      } else {
+        alert('Compartilhamento não suportado neste dispositivo.');
+      }
+    } catch (_) {
+      // usuário pode cancelar o share; não exibir erro
+    }
   };
 
   const orderIndex = (tab: TabKey) => (tab === 'left' ? 0 : tab === 'center' ? 1 : 2);
 
   const handleTabChange = (next: TabKey) => {
     if (next === activeTab || animatingTabs) return;
+
+    // Limpa timeouts anteriores
+    tabTimersRef.current.forEach((id) => clearTimeout(id));
+    tabTimersRef.current = [];
+
     const dir = orderIndex(next) > orderIndex(activeTab) ? 'left' : 'right';
     setActiveTab(next);
     setIncomingTab(next);
     setAnimDirection(dir);
     setAnimatingTabs(true);
     setEnterPhase(false);
-    // start enter on next tick
+
     const tEnter = window.setTimeout(() => setEnterPhase(true), 20);
     const tDone = window.setTimeout(() => {
       setDisplayedTab(next);
       setIncomingTab(null);
       setAnimatingTabs(false);
       setEnterPhase(false);
+      setAnimDirection(null);
     }, 400);
-    // cleanup
-    return () => {
-      clearTimeout(tEnter);
-      clearTimeout(tDone);
-    };
+
+    tabTimersRef.current = [tEnter, tDone];
   };
 
   const renderTabContent = (tab: TabKey) => {
     if (tab === 'center') {
       return (
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <h1 style={{
-            margin: '10px 0 10px',
+            margin: uiCompact ? '4px 0 16px' : '10px 0 20px',
             fontSize: '22px',
             lineHeight: '28px',
             color: '#111827',
-            fontWeight: 800
+            fontWeight: 800,
+            transition: `margin ${UI_ANIM_MS}ms ease, transform ${UI_ANIM_MS}ms ease`,
+            transform: uiCompact ? 'translateY(-8px)' : 'translateY(0px)'
           }}>
-            Pelo que você gostaria de orar hoje?
+            <span>Pelo que você</span>
+            <br />
+            <span>gostaria de orar hoje?</span>
           </h1>
 
           <textarea
+            ref={textAreaRef}
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             placeholder="Digite aqui..."
             style={{
               width: '100%',
-              minHeight: '90px',
+              height: uiCompact ? inputHeight : 90,
+              minHeight: 0,
               padding: '10px 12px',
               borderRadius: '14px',
               border: '1px solid #e6e6e6',
               background: '#ffffff',
               fontSize: '14px',
               color: '#333',
-              outline: 'none'
+              outline: 'none',
+              transition: `height ${UI_ANIM_MS}ms ease, transform ${UI_ANIM_MS}ms ease`,
+              transform: uiCompact ? 'translateY(-6px)' : 'translateY(0)'
             }}
           />
 
-          <div style={{ height: 14 }} />
+          <div style={{ height: uiCompact ? 10 : 14, transition: `height ${UI_ANIM_MS}ms ease` }} />
 
           <button
             onClick={handleGenerate}
@@ -264,41 +314,58 @@ export default function Home() {
               fontSize: '28px',
               cursor: isLoading ? 'default' : 'pointer',
               boxShadow: '0 10px 24px rgba(79,70,229,0.35)',
-              margin: '0 auto'
+              margin: '0 auto',
+              transition: `transform ${UI_ANIM_MS}ms ease, opacity ${UI_ANIM_MS}ms ease`,
+              transform: uiCompact ? 'translateY(-6px)' : 'translateY(0)',
+              opacity: isLoading && uiCompact ? 0.85 : 1
             }}
           >
             {isLoading ? '⏳' : '🙏'}
           </button>
 
-          {oracao && (
-            <div style={{
+          {/* Resposta */}
+          <div
+            ref={resultRef}
+            style={{
               marginTop: 16,
               textAlign: 'left',
-              background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
-              border: '1px solid #eef0ff',
+              background: '#eef2ff',
+              border: '1px solid #d9e0ff',
               borderRadius: 14,
               padding: 14,
-              color: '#2a2a2a'
-            }}>
-              <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{oracao}</p>
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button
-                  onClick={copyToClipboard}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #e0e3ff',
-                    background: '#fff',
-                    color: '#4f46e5',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Copiar
-                </button>
-                {copyMsg && (
-                  <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 12 }}>{copyMsg}</span>
-                )}
-              </div>
+              color: '#1f2937',
+              boxShadow: '0 8px 18px rgba(50, 70, 160, 0.08)',
+              opacity: resultVisible ? 1 : 0,
+              transform: resultVisible ? 'translateY(0px)' : 'translateY(10px)',
+              transition: `opacity ${UI_ANIM_MS}ms ease, transform ${UI_ANIM_MS}ms ease`,
+              minHeight: oracao ? undefined : 0,
+              display: oracao ? 'block' : 'none'
+            }}
+          >
+            <p style={{ whiteSpace: 'pre-line', margin: 0, textAlign: 'justify' }}>{oracao}</p>
+          </div>
+
+          {/* Botão compartilhar */}
+          {oracao && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+              <button
+                onClick={handleShare}
+                aria-label="Compartilhar oração"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  border: '1px solid #d9e0ff',
+                  background: '#ffffff',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 12px rgba(50,70,160,0.08)'
+                }}
+              >
+                📤 Compartilhar
+              </button>
             </div>
           )}
         </div>
@@ -395,37 +462,21 @@ export default function Home() {
 
         {/* Conteúdo principal variável por aba */}
         <div style={{ flex: 1, padding: '10px 18px 0 18px', overflowY: 'auto' }}>
-          {/* Removido título "Vamos conversar com Deus hoje?" do conteúdo principal */}
-          {/* Frase rotativa com animação sutil */}
-          {fraseTopo && (
-            <div style={{
-              textAlign: 'center',
-              fontSize: '14px',
-              color: '#6b7280',
-              fontStyle: 'italic',
-              marginBottom: '8px',
-              transition: 'opacity 260ms ease, transform 260ms ease',
-              opacity: fraseVisible ? 1 : 0,
-              transform: fraseVisible ? 'translateY(0px)' : 'translateY(6px)'
-            }}>
-              {fraseTopo}
-            </div>
-          )}
-
           {/* Área com transição entre abas */}
-          <div style={{ position: 'relative', minHeight: 220 }}>
+          <div style={{ position: 'relative', height: '100%' }}>
             {/* Aba atual (saindo) */}
             <div
               style={{
-                position: animatingTabs ? 'absolute' : 'relative',
+                position: 'absolute',
                 inset: 0,
-                transition: 'transform 400ms ease, opacity 400ms ease',
+                transition: animatingTabs ? 'transform 400ms ease, opacity 400ms ease' : undefined,
                 transform: animatingTabs
                   ? animDirection === 'left'
                     ? 'translateX(-24px)'
                     : 'translateX(24px)'
                   : 'translateX(0px)',
-                opacity: animatingTabs ? 0 : 1
+                opacity: animatingTabs ? 0 : 1,
+                pointerEvents: animatingTabs ? 'none' : 'auto'
               }}
             >
               {renderTabContent(displayedTab)}
@@ -435,7 +486,8 @@ export default function Home() {
             {incomingTab && (
               <div
                 style={{
-                  position: 'relative',
+                  position: 'absolute',
+                  inset: 0,
                   transition: 'transform 400ms ease, opacity 400ms ease',
                   transform: enterPhase
                     ? 'translateX(0px)'
@@ -450,6 +502,22 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Frase rotativa posicionada acima do menu */}
+        {fraseTopo && (
+          <div style={{
+            textAlign: 'center',
+            fontSize: '14px',
+            color: '#6b7280',
+            fontStyle: 'italic',
+            padding: '6px 18px',
+            transition: 'opacity 260ms ease, transform 260ms ease',
+            opacity: fraseVisible ? 1 : 0,
+            transform: fraseVisible ? 'translateY(0px)' : 'translateY(6px)'
+          }}>
+            {fraseTopo}
+          </div>
+        )}
 
         {/* Bottom Nav */}
         <nav style={{
