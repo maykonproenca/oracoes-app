@@ -80,8 +80,11 @@ export default function Home() {
   // Novo splash em duas etapas
   const [splashStage, setSplashStage] = useState<'logo' | 'phrase'>('logo');
   const [splashVisible, setSplashVisible] = useState<boolean>(false);
-  const FADE_IN_MS = 1000;
-  const FADE_OUT_MS = 2000;
+  const FADE_IN_MS = 500; // 0.5s
+  const FADE_OUT_LOGO_MS = 1000; // 1s
+  const FADE_OUT_PHRASE_MS = 2000; // 2s (pedido)
+  // Visibilidade da tela principal
+  const [mainVisible, setMainVisible] = useState<boolean>(false);
 
   // Sequência do splash: logo -> frase -> app
   useEffect(() => {
@@ -91,14 +94,14 @@ export default function Home() {
     let t4: number | undefined;
 
     setSplashStage('logo');
-    setSplashVisible(true); // dispara fade-in do logo (1s)
-    t1 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out (2s)
+    setSplashVisible(true); // fade-in do logo (0.5s)
+    t1 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // inicia fade-out do logo (1s)
     t2 = window.setTimeout(() => {
       setSplashStage('phrase');
-      setSplashVisible(true); // fade-in da frase (1s)
-      t3 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out (2s)
-      t4 = window.setTimeout(() => setShowSplash(false), FADE_IN_MS + FADE_OUT_MS); // encerra splash
-    }, FADE_IN_MS + FADE_OUT_MS); // após 3s do logo
+      setSplashVisible(true); // fade-in da frase (0.5s)
+      t3 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // inicia fade-out da frase (2s)
+      t4 = window.setTimeout(() => setShowSplash(false), FADE_IN_MS + FADE_OUT_PHRASE_MS); // encerra splash
+    }, FADE_IN_MS + FADE_OUT_LOGO_MS); // após logo concluir
 
     return () => {
       if (t1) clearTimeout(t1);
@@ -107,6 +110,15 @@ export default function Home() {
       if (t4) clearTimeout(t4);
     };
   }, []);
+
+  // Quando o splash some, aplica fade-in de 1s na tela principal
+  useEffect(() => {
+    if (!showSplash) {
+      // garantir que o componente montou antes de iniciar a transição
+      const tid = window.setTimeout(() => setMainVisible(true), 30);
+      return () => clearTimeout(tid);
+    }
+  }, [showSplash]);
 
   // Atualiza gradiente conforme horário (checa a cada 5 minutos)
   useEffect(() => {
@@ -176,6 +188,7 @@ export default function Home() {
   const outerBackground = 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)';
 
   if (showSplash) {
+    const currentFadeOut = splashStage === 'logo' ? FADE_OUT_LOGO_MS : FADE_OUT_PHRASE_MS;
     return (
       <div style={{
         height: '100dvh',
@@ -188,7 +201,7 @@ export default function Home() {
         <div
           style={{
             opacity: splashVisible ? 1 : 0,
-            transition: `opacity ${splashVisible ? FADE_IN_MS : FADE_OUT_MS}ms ease`,
+            transition: `opacity ${splashVisible ? FADE_IN_MS : currentFadeOut}ms ease`,
             transform: 'translateY(0)',
             fontSize: splashStage === 'logo' ? '56px' : '22px',
             fontWeight: splashStage === 'logo' ? 400 : 700,
@@ -221,7 +234,10 @@ export default function Home() {
         display: 'flex',
         flexDirection: 'column',
         height: '92dvh',
-        border: '1px solid rgba(230,235,255,0.8)'
+        border: '1px solid rgba(230,235,255,0.8)',
+        opacity: mainVisible ? 1 : 0,
+        transform: mainVisible ? 'translateY(0px)' : 'translateY(8px)',
+        transition: 'opacity 500ms ease, transform 500ms ease'
       }}>
         {/* Header simples */}
         <div style={{ padding: '14px 18px 6px 18px' }}>
