@@ -70,6 +70,12 @@ function gradientForHour(hour: number): string {
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('center');
+  // Estados para transição entre abas
+  const [displayedTab, setDisplayedTab] = useState<TabKey>('center');
+  const [incomingTab, setIncomingTab] = useState<TabKey | null>(null);
+  const [animatingTabs, setAnimatingTabs] = useState<boolean>(false);
+  const [enterPhase, setEnterPhase] = useState<boolean>(false);
+  const [animDirection, setAnimDirection] = useState<'left' | 'right' | null>(null);
   const [motivo, setMotivo] = useState('');
   const [oracao, setOracao] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -77,49 +83,43 @@ export default function Home() {
   const [fraseTopo, setFraseTopo] = useState<string>('');
   const [fraseVisible, setFraseVisible] = useState<boolean>(false);
   const [bgGradient, setBgGradient] = useState<string>(gradientForHour(new Date().getHours()));
-  // Novo splash em duas etapas
-  const [splashStage, setSplashStage] = useState<'logo' | 'phrase'>('logo');
-  const [splashVisible, setSplashVisible] = useState<boolean>(false);
-  const FADE_IN_MS = 500; // 0.5s
-  const FADE_OUT_LOGO_MS = 1000; // 1s
-  const FADE_OUT_PHRASE_MS = 2000; // 2s (pedido)
+  // Splash controlado por timeline
+  const [logoVisible, setLogoVisible] = useState<boolean>(false);
+  const [phraseVisible, setPhraseVisible] = useState<boolean>(false);
+  const FADE_IN_MS = 500;  // 0.5s
+  const FADE_OUT_MS = 1000; // 1s
   // Visibilidade da tela principal
   const [mainVisible, setMainVisible] = useState<boolean>(false);
 
-  // Sequência do splash: logo -> frase -> app
+  // Timeline do splash: 
+  // t=0s: start -> logo fade-in 0.5s
+  // t=1s: frase fade-in 0.5s
+  // t=2-3s: ambos estáticos
+  // t=3-4s: ambos fade-out 1s => entra app
   useEffect(() => {
-    const t1 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out do logo
+    // garantir estado inicial
+    setLogoVisible(false);
+    setPhraseVisible(false);
 
-    const t2 = window.setTimeout(() => {
-      setSplashStage('phrase');
-      setSplashVisible(true); // fade-in da frase
-
-      const t3 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out da frase
-      const t4 = window.setTimeout(
-        () => setShowSplash(false),
-        FADE_IN_MS + FADE_OUT_PHRASE_MS
-      );
-
-      return () => {
-        clearTimeout(t3);
-        clearTimeout(t4);
-      };
-    }, FADE_IN_MS + FADE_OUT_LOGO_MS);
-
-    // inicia estado do splash
-    setSplashStage('logo');
-    setSplashVisible(true);
+    const t0 = window.setTimeout(() => setLogoVisible(true), 30);       // dispara transição do logo
+    const t1 = window.setTimeout(() => setPhraseVisible(true), 1000);   // inicia frase no segundo 2
+    const t2 = window.setTimeout(() => {                                 // segundo 4: fade-out dos dois
+      setLogoVisible(false);
+      setPhraseVisible(false);
+    }, 3000);
+    const t3 = window.setTimeout(() => setShowSplash(false), 4000);     // encerra splash
 
     return () => {
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
     };
   }, []);
 
-  // Quando o splash some, aplica fade-in de 1s na tela principal
+  // Quando o splash some, aplica fade-in de 0.5s na tela principal
   useEffect(() => {
     if (!showSplash) {
-      // garantir que o componente montou antes de iniciar a transição
       const tid = window.setTimeout(() => setMainVisible(true), 30);
       return () => clearTimeout(tid);
     }
@@ -189,11 +189,142 @@ export default function Home() {
     setTimeout(() => setCopyMsg(''), 1500);
   };
 
+  const orderIndex = (tab: TabKey) => (tab === 'left' ? 0 : tab === 'center' ? 1 : 2);
+
+  const handleTabChange = (next: TabKey) => {
+    if (next === activeTab || animatingTabs) return;
+    const dir = orderIndex(next) > orderIndex(activeTab) ? 'left' : 'right';
+    setActiveTab(next);
+    setIncomingTab(next);
+    setAnimDirection(dir);
+    setAnimatingTabs(true);
+    setEnterPhase(false);
+    // start enter on next tick
+    const tEnter = window.setTimeout(() => setEnterPhase(true), 20);
+    const tDone = window.setTimeout(() => {
+      setDisplayedTab(next);
+      setIncomingTab(null);
+      setAnimatingTabs(false);
+      setEnterPhase(false);
+    }, 400);
+    // cleanup
+    return () => {
+      clearTimeout(tEnter);
+      clearTimeout(tDone);
+    };
+  };
+
+  const renderTabContent = (tab: TabKey) => {
+    if (tab === 'center') {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{
+            margin: '10px 0 10px',
+            fontSize: '22px',
+            lineHeight: '28px',
+            color: '#111827',
+            fontWeight: 800
+          }}>
+            Pelo que você gostaria de orar hoje?
+          </h1>
+
+          <textarea
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Digite aqui..."
+            style={{
+              width: '100%',
+              minHeight: '90px',
+              padding: '10px 12px',
+              borderRadius: '14px',
+              border: '1px solid #e6e6e6',
+              background: '#ffffff',
+              fontSize: '14px',
+              color: '#333',
+              outline: 'none'
+            }}
+          />
+
+          <div style={{ height: 14 }} />
+
+          <button
+            onClick={handleGenerate}
+            disabled={isLoading || !motivo.trim()}
+            aria-label="Gerar oração"
+            style={{
+              display: 'inline-flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              border: 'none',
+              background: isLoading ? '#c7d2fe' : '#4f46e5',
+              color: '#fff',
+              fontSize: '28px',
+              cursor: isLoading ? 'default' : 'pointer',
+              boxShadow: '0 10px 24px rgba(79,70,229,0.35)',
+              margin: '0 auto'
+            }}
+          >
+            {isLoading ? '⏳' : '🙏'}
+          </button>
+
+          {oracao && (
+            <div style={{
+              marginTop: 16,
+              textAlign: 'left',
+              background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
+              border: '1px solid #eef0ff',
+              borderRadius: 14,
+              padding: 14,
+              color: '#2a2a2a'
+            }}>
+              <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{oracao}</p>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  onClick={copyToClipboard}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #e0e3ff',
+                    background: '#fff',
+                    color: '#4f46e5',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Copiar
+                </button>
+                {copyMsg && (
+                  <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 12 }}>{copyMsg}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Conteúdos placeholder para outras abas
+    return (
+      <div style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#8a8a8e'
+      }}>
+        <div style={{ fontSize: 44, marginBottom: 10 }}>🕊️</div>
+        <div style={{ fontSize: 15 }}>Conteúdo em breve</div>
+      </div>
+    );
+  };
+
   // Fundo externo fixo escuro (fora do card)
   const outerBackground = 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)';
 
   if (showSplash) {
-    const currentFadeOut = splashStage === 'logo' ? FADE_OUT_LOGO_MS : FADE_OUT_PHRASE_MS;
     return (
       <div style={{
         height: '100dvh',
@@ -203,18 +334,31 @@ export default function Home() {
         background: outerBackground,
         color: '#fff'
       }}>
-        <div
-          style={{
-            opacity: splashVisible ? 1 : 0,
-            transition: `opacity ${splashVisible ? FADE_IN_MS : currentFadeOut}ms ease`,
-            transform: 'translateY(0)',
-            fontSize: splashStage === 'logo' ? '56px' : '22px',
-            fontWeight: splashStage === 'logo' ? 400 : 700,
-            textAlign: 'center',
-            padding: '0 24px'
-          }}
-        >
-          {splashStage === 'logo' ? '📖' : 'Vamos conversar com Deus hoje?'}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              opacity: logoVisible ? 1 : 0,
+              transition: `opacity ${logoVisible ? FADE_IN_MS : FADE_OUT_MS}ms ease`,
+              fontSize: '56px',
+              lineHeight: '56px'
+            }}
+          >
+            📖
+          </div>
+          <div
+            style={{
+              opacity: phraseVisible ? 1 : 0,
+              transition: `opacity ${phraseVisible ? FADE_IN_MS : FADE_OUT_MS}ms ease`,
+              fontSize: '22px',
+              fontWeight: 700,
+              textAlign: 'center',
+              padding: '0 24px'
+            }}
+          >
+            <span>VAMOS CONVERSAR</span>
+            <br />
+            <span>COM DEUS HOJE?</span>
+          </div>
         </div>
       </div>
     );
@@ -268,108 +412,43 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'center' && (
-            <div style={{ textAlign: 'center' }}>
-              <h1 style={{
-                margin: '10px 0 10px',
-                fontSize: '22px',
-                lineHeight: '28px',
-                color: '#111827',
-                fontWeight: 800
-              }}>
-                Pelo que você gostaria de orar hoje?
-              </h1>
+          {/* Área com transição entre abas */}
+          <div style={{ position: 'relative', minHeight: 220 }}>
+            {/* Aba atual (saindo) */}
+            <div
+              style={{
+                position: animatingTabs ? 'absolute' : 'relative',
+                inset: 0,
+                transition: 'transform 400ms ease, opacity 400ms ease',
+                transform: animatingTabs
+                  ? animDirection === 'left'
+                    ? 'translateX(-24px)'
+                    : 'translateX(24px)'
+                  : 'translateX(0px)',
+                opacity: animatingTabs ? 0 : 1
+              }}
+            >
+              {renderTabContent(displayedTab)}
+            </div>
 
-              <textarea
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Digite aqui..."
+            {/* Aba entrando */}
+            {incomingTab && (
+              <div
                 style={{
-                  width: '100%',
-                  minHeight: '90px',
-                  padding: '10px 12px',
-                  borderRadius: '14px',
-                  border: '1px solid #e6e6e6',
-                  background: '#ffffff',
-                  fontSize: '14px',
-                  color: '#333',
-                  outline: 'none'
-                }}
-              />
-
-              <div style={{ height: 14 }} />
-
-              <button
-                onClick={handleGenerate}
-                disabled={isLoading || !motivo.trim()}
-                aria-label="Gerar oração"
-                style={{
-                  display: 'inline-flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: 64,
-                  height: 64,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: isLoading ? '#c7d2fe' : '#4f46e5',
-                  color: '#fff',
-                  fontSize: '28px',
-                  cursor: isLoading ? 'default' : 'pointer',
-                  boxShadow: '0 10px 24px rgba(79,70,229,0.35)',
-                  margin: '0 auto'
+                  position: 'relative',
+                  transition: 'transform 400ms ease, opacity 400ms ease',
+                  transform: enterPhase
+                    ? 'translateX(0px)'
+                    : animDirection === 'left'
+                      ? 'translateX(24px)'
+                      : 'translateX(-24px)',
+                  opacity: enterPhase ? 1 : 0
                 }}
               >
-                {isLoading ? '⏳' : '🙏'}
-              </button>
-
-              {/* Resultado */}
-              {oracao && (
-                <div style={{
-                  marginTop: 16,
-                  textAlign: 'left',
-                  background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
-                  border: '1px solid #eef0ff',
-                  borderRadius: 14,
-                  padding: 14,
-                  color: '#2a2a2a'
-                }}>
-                  <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{oracao}</p>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button
-                      onClick={copyToClipboard}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: 10,
-                        border: '1px solid #e0e3ff',
-                        background: '#fff',
-                        color: '#4f46e5',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Copiar
-                    </button>
-                    {copyMsg && (
-                      <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 12 }}>{copyMsg}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab !== 'center' && (
-            <div style={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#8a8a8e'
-            }}>
-              <div style={{ fontSize: 44, marginBottom: 10 }}>🕊️</div>
-              <div style={{ fontSize: 15 }}>Conteúdo em breve</div>
-            </div>
-          )}
+                {renderTabContent(incomingTab)}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom Nav */}
@@ -385,19 +464,19 @@ export default function Home() {
             label="Menu 1"
             emoji="🏔️"
             active={activeTab === 'left'}
-            onClick={() => setActiveTab('left')}
+            onClick={() => handleTabChange('left')}
           />
           <TabIcon
             label="Orar"
             emoji="🙏"
             active={activeTab === 'center'}
-            onClick={() => setActiveTab('center')}
+            onClick={() => handleTabChange('center')}
           />
           <TabIcon
             label="Menu 3"
             emoji="🌟"
             active={activeTab === 'right'}
-            onClick={() => setActiveTab('right')}
+            onClick={() => handleTabChange('right')}
           />
         </nav>
       </div>
