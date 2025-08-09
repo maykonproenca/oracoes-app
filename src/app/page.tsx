@@ -88,26 +88,31 @@ export default function Home() {
 
   // Sequência do splash: logo -> frase -> app
   useEffect(() => {
-    let t1: number | undefined;
-    let t2: number | undefined;
-    let t3: number | undefined;
-    let t4: number | undefined;
+    const t1 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out do logo
 
-    setSplashStage('logo');
-    setSplashVisible(true); // fade-in do logo (0.5s)
-    t1 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // inicia fade-out do logo (1s)
-    t2 = window.setTimeout(() => {
+    const t2 = window.setTimeout(() => {
       setSplashStage('phrase');
-      setSplashVisible(true); // fade-in da frase (0.5s)
-      t3 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // inicia fade-out da frase (2s)
-      t4 = window.setTimeout(() => setShowSplash(false), FADE_IN_MS + FADE_OUT_PHRASE_MS); // encerra splash
-    }, FADE_IN_MS + FADE_OUT_LOGO_MS); // após logo concluir
+      setSplashVisible(true); // fade-in da frase
+
+      const t3 = window.setTimeout(() => setSplashVisible(false), FADE_IN_MS); // fade-out da frase
+      const t4 = window.setTimeout(
+        () => setShowSplash(false),
+        FADE_IN_MS + FADE_OUT_PHRASE_MS
+      );
+
+      return () => {
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
+    }, FADE_IN_MS + FADE_OUT_LOGO_MS);
+
+    // inicia estado do splash
+    setSplashStage('logo');
+    setSplashVisible(true);
 
     return () => {
-      if (t1) clearTimeout(t1);
-      if (t2) clearTimeout(t2);
-      if (t3) clearTimeout(t3);
-      if (t4) clearTimeout(t4);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
   }, []);
 
